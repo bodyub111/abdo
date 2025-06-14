@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>اكشف الجاسوس مع بودي</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      direction: rtl;
+      font-family: 'Cairo', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(-45deg, #000000, #8b0000, #330000, #111);
+      background-size: 400% 400%;
+      animation: cloudAnim 15s ease infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    @keyframes cloudAnim {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .card {
+      background-color: rgba(255, 255, 255, 0.95);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      width: 90%;
+      max-width: 420px;
+    }
+
+    .logo {
+      width: 100px;
+      height: 100px;
+      object-fit: contain;
+      border-radius: 50%;
+      margin-bottom: 10px;
+      border: 3px solid black;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin-bottom: 10px;
+      color: #8b0000;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin: 10px 0 5px;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background-color: #d32f2f;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #9a0007;
+    }
+
+    .timer {
+      font-size: 28px;
+      font-weight: bold;
+      color: #b71c1c;
+      margin-top: 20px;
+    }
+
+    .emoji {
+      font-size: 32px;
+    }
+
+    .result {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="gameArea">
+    <img src="logo.png" alt="Logo" class="logo" />
+    <h1>اكشف الجاسوس مع بودي</h1>
+
+    <label>اختر القسم:</label>
+    <select id="category">
+      <option value="food">🍔 أكل</option>
+      <option value="places">🏠 أماكن</option>
+      <option value="actors">🎭 ممثلين</option>
+    </select>
+
+    <label>اختر وقت الجولة:</label>
+    <select id="timerSelect">
+      <option value="120">⏱️ دقيقتين</option>
+      <option value="300">⏱️ 5 دقايق</option>
+      <option value="600">⏱️ 10 دقايق</option>
+    </select>
+
+    <label>عدد اللاعبين (3 - 10):</label>
+    <input type="number" id="playerCount" min="3" max="10" />
+    <button onclick="createNameInputs()">أضف أسماء اللاعبين</button>
+    <div id="nameInputs"></div>
+    <button id="startBtn" onclick="startGame()" style="display:none;">ابدأ اللعبة</button>
+    <button onclick="goFullScreen()">📱 وضع ملء الشاشة</button>
+  </div>
+
+  <!-- الأصوات -->
+  <audio id="startSound" src="start.mp3"></audio>
+  <audio id="revealSound" src="reveal.mp3"></audio>
+  <audio id="endSound" src="end.mp3"></audio>
+
+  <script>
+    let players = [];
+    let currentPlayerIndex = 0;
+    let spyIndex = -1;
+    let secretWord = "";
+    let timeLeft = 0;
+    let timerInterval;
+
+    const words = {
+      food: ["كشري", "ملوخية", "شاورما", "بيتزا", "رز بلبن", "كبدة", "حمام محشي", "بسبوسة"],
+      places: ["المدرسة", "المستشفى", "الكوافير", "النادي", "الدسك الأخير في الفصل 🪑", "محطة البنزين", "مول", "الجامع"],
+      actors: ["طه دسوقي", "عصام عمر", "أحمد مكي", "محمد رمضان", "محمد هنيدي", "أحمد حلمي", "أكرم حسني", "كريم عبد العزيز"]
+    };
+
+    function createNameInputs() {
+      const count = parseInt(document.getElementById("playerCount").value);
+      const container = document.getElementById("nameInputs");
+      container.innerHTML = "";
+
+      if (count >= 3 && count <= 10) {
+        for (let i = 1; i <= count; i++) {
+          const input = document.createElement("input");
+          input.placeholder = "اسم اللاعب " + i;
+          input.id = "player" + i;
+          container.appendChild(input);
+        }
+        document.getElementById("startBtn").style.display = "block";
+      } else {
+        alert("عدد اللاعبين لازم يكون من 3 لـ 10");
+      }
+    }
+
+    function startGame() {
+      players = [];
+      const count = parseInt(document.getElementById("playerCount").value);
+      for (let i = 1; i <= count; i++) {
+        const name = document.getElementById("player" + i).value.trim();
+        if (!name) {
+          alert("من فضلك اكتب اسم كل لاعب");
+          return;
+        }
+        players.push(name);
+      }
+
+      const category = document.getElementById("category").value;
+      secretWord = words[category][Math.floor(Math.random() * words[category].length)];
+      timeLeft = parseInt(document.getElementById("timerSelect").value);
+
+      spyIndex = Math.floor(Math.random() * players.length);
+      currentPlayerIndex = 0;
+
+      showPlayerScreen();
+    }
+
+    function showPlayerScreen() {
+      const name = players[currentPlayerIndex];
+      const card = document.getElementById("gameArea");
+
+      card.innerHTML = `
+        <img src="logo.png" class="logo" />
+        <h2>اللاعب: ${name}</h2>
+        <button onclick="revealIdentity()">اكشف عن هويتك</button>
+        <div id="result" class="result"></div>
+      `;
+    }
+
+    function revealIdentity() {
+      document.getElementById("revealSound").play();
+      const resultDiv = document.getElementById("result");
+      if (currentPlayerIndex === spyIndex) {
+        resultDiv.innerHTML = `<div class="emoji">🎭</div><strong>أنت الجاسوس!</strong><br>حاول تخمن المعلومة`;
+      } else {
+        resultDiv.innerHTML = `<div class="emoji">✅</div><strong>أنت مش الجاسوس</strong><br>المعلومة هي: <b style="color:green;">${secretWord}</b>`;
+      }
+      resultDiv.innerHTML += `<br><br><button onclick="nextPlayer()">➡️ إدي التليفون للاعب التالي</button>`;
+    }
+
+    function nextPlayer() {
+      currentPlayerIndex++;
+      if (currentPlayerIndex < players.length) {
+        showPlayerScreen();
+      } else {
+        startTimer();
+      }
+    }
+
+    function startTimer() {
+      document.getElementById("startSound").play();
+      const card = document.getElementById("gameArea");
+      card.innerHTML = `
+        <img src="logo.png" class="logo" />
+        <h2>اللعبة بدأت!</h2>
+        <p>🎯 الجاسوس في وسطكم... خمنوا مين؟</p>
+        <div class="timer" id="timerDisplay"></div>
+      `;
+      updateTimer();
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function updateTimer() {
+      const timerDisplay = document.getElementById("timerDisplay");
+      const minutes = Math.floor(timeLeft / 60);
+      const seconds = timeLeft % 60;
+      timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        document.getElementById("endSound").play();
+        timerDisplay.innerHTML += "<br>⏰ الوقت خلص!";
+      }
+      timeLeft--;
+    }
+
+    function goFullScreen() {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) elem.requestFullscreen();
+      else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+      else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+    }
+  </script>
+</body>
+</html>
